@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { McpError } from '@modelcontextprotocol/sdk/types.js';
 import { CliError, ExitCode } from './errors.js';
 import type { Io } from './io.js';
 import type { Output } from './output.js';
@@ -186,7 +187,7 @@ export class RadianceApi {
       if (failure?.status === 429) {
         throw new RateLimitedError(failure.retryAfterSeconds ?? DEFAULT_RETRY_SECONDS);
       }
-      if (error instanceof CliError) {
+      if (error instanceof CliError || error instanceof McpError) {
         throw error;
       }
       const reason = error instanceof Error ? error.message : String(error);

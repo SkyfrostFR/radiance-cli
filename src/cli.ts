@@ -4,6 +4,7 @@ import { TOKENS_PAGE_URL, clearToken, configPath, saveToken } from './config.js'
 import { CliError, ExitCode, type ExitCodeValue } from './errors.js';
 import { type Io, processIo } from './io.js';
 import { Output } from './output.js';
+import { runBridge } from './mcp.js';
 import { registerWorkflowCommands } from './workflow.js';
 import {
   type Context,
@@ -212,6 +213,11 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
     .option('-a, --arg <key=value>', 'tool argument; repeatable; the value is parsed as JSON, else kept as a string', collect, [] as string[])
     .option('-i, --input <json|->', 'tool arguments as a JSON object, or - to read it from stdin')
     .action(action((ctx, name: string, opts: { arg?: string[]; input?: string }) => call(ctx, name, opts)));
+
+  program
+    .command('mcp')
+    .description('run a local MCP server on stdio that relays every tool to Radiance (for Claude Desktop, Cursor, Cline, ...)')
+    .action(action((ctx) => runBridge(ctx)));
 
   registerWorkflowCommands(program, action);
 

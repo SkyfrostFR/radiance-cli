@@ -34,6 +34,7 @@ Token priority: `--token`, then `RADIANCE_TOKEN`, then the config file. (`--toke
 | `radiance tools` | List tools: name, title, `read` or `write` |
 | `radiance tools <name>` | Description and input schema of one tool |
 | `radiance call <tool> [--arg k=v]... [--input <json\|->]` | Call a tool |
+| `radiance mcp` | Local stdio MCP server relaying to Radiance (see below) |
 
 Global flags (accepted before or after the command): `--token <token>`, `--json`, `-y/--yes`, `--verbose`, `-V/--version`.
 
@@ -86,6 +87,62 @@ Steps: `upload`, `confirm`, `wait`, `estimate`, `translate`, `download`, `publis
 ### Write tools need your agreement
 
 A tool that is not annotated read-only may spend tokens or publish. On a terminal the CLI asks `[y/N]` before calling. Off a terminal it refuses with exit code 3 and calls nothing, unless you pass `--yes`.
+
+## Use Radiance as a local MCP server (`radiance mcp`)
+
+For MCP clients that only start local commands (stdio) or cannot send an `Authorization` header, `radiance mcp` runs a bridge: it relays `tools/list`, `tools/call`, `resources/*` and `prompts/*` to the remote Radiance server with your token, and answers with exactly what the remote answered (names, schemas, annotations, errors). Nothing is cached, so the tool list is always the live one, and `list_changed` notifications from the remote are forwarded. stdout carries JSON-RPC only; logs go to stderr.
+
+Give it a token with `radiance login` once, or set `RADIANCE_TOKEN` in the client's configuration. Without a token the server still starts: `tools/list` is empty and every call returns "run `radiance login` or set `RADIANCE_TOKEN`". A token saved with `radiance login` while the bridge is running is picked up on the next request.
+
+Copy-paste configuration (replace the token with one from <https://radiance-app.com/settings/api-tokens>):
+
+**Claude Desktop** (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "radiance": {
+      "command": "npx",
+      "args": ["-y", "@radiance-app/cli", "mcp"],
+      "env": { "RADIANCE_TOKEN": "your-token" }
+    }
+  }
+}
+```
+
+**Cursor** (`~/.cursor/mcp.json` or `.cursor/mcp.json`): same `mcpServers` block as above.
+
+**VS Code** (`.vscode/mcp.json`; note `servers`, and `type`):
+
+```json
+{
+  "servers": {
+    "radiance": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@radiance-app/cli", "mcp"],
+      "env": { "RADIANCE_TOKEN": "your-token" }
+    }
+  }
+}
+```
+
+**Cline** (`cline_mcp_settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "radiance": {
+      "command": "npx",
+      "args": ["-y", "@radiance-app/cli", "mcp"],
+      "env": { "RADIANCE_TOKEN": "your-token" },
+      "disabled": false
+    }
+  }
+}
+```
+
+Write tools (publishing, translation, uploads) are relayed as is: the confirmation is your MCP client's tool-approval prompt, not the CLI's `--yes`.
 
 ## Exit codes
 

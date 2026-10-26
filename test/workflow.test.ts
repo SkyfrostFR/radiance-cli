@@ -383,3 +383,16 @@ describe('publish', () => {
     expect((await runCli(['publish', VIDEO, '--account', ACCOUNT, '--lang', 'de', '--yes'], { env: env() })).code).toBe(7);
   });
 });
+
+describe('token hygiene in workflows', () => {
+  it('never prints the token, even with --verbose across upload, wait and publish', async () => {
+    for (const args of [
+      ['translate', videoFile, '--to', 'es', '--mode', 'subtitles_only', '--yes', '--wait', '--verbose'],
+      ['publish', VIDEO, '--account', ACCOUNT, '--lang', 'es', '--yes', '--verbose', '--json'],
+    ]) {
+      const r = await runCli(args, { env: env() });
+      expect(r.stdout + r.stderr).not.toContain(TOKEN);
+      expect(r.stderr + r.stdout).toContain(args.includes('--json') ? '"event"' : '[verbose]');
+    }
+  });
+});
