@@ -29,6 +29,7 @@ export function makeConfigHome(): { dir: string; cleanup: () => void } {
 export async function runCli(args: string[], options: RunOptions = {}): Promise<RunResult> {
   const result: RunResult = { code: -1, stdout: '', stderr: '', sleeps: [], opened: [], prompts: [] };
   const tty = options.tty ?? false;
+  let clock = 1_000_000;
   const io: Io = {
     env: options.env ?? {},
     stdout: (text) => void (result.stdout += text),
@@ -46,7 +47,11 @@ export async function runCli(args: string[], options: RunOptions = {}): Promise<
       return options.confirm ?? false;
     },
     openUrl: (url) => void result.opened.push(url),
-    sleep: async (ms) => void result.sleeps.push(ms),
+    sleep: async (ms) => {
+      result.sleeps.push(ms);
+      clock += ms;
+    },
+    now: () => clock,
   };
   result.code = await run(args, io);
   return result;

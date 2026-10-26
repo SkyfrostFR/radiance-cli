@@ -125,3 +125,103 @@ export function resultText(result: ToolResultLike): string {
     .filter((text) => text !== '')
     .join('\n');
 }
+
+/**
+ * A long-lived session for multi-step workflows (upload, poll, publish): one connection
+ * for the whole command so polling does not burn the 60 requests/minute budget on
+ * handshakes. Each request gets the same 429 treatment as {@link withSession}: wait,
+ * reconnect, retry once. A 429 means the server refused the request before acting on
+ * it, so the retry cannot double-spend.
+ */
+export class RadianceApi {
+  private client: Client | undefined;
+  private failure: HttpFailure | undefined;
+
+  constructor(
+    private readonly options: ConnectOptions,
+    private readonly onConnect?: (client: Client) => void,
+  ) {}
+
+  private async connect(): Promise<Client> {
+    if (this.client) {
+      return this.client;
+    }
+    const { out } = this.options;
+    const tracingFetch: typeof fetch = async (input, init) => {
+      const method = init?.method ?? 'GET';
+      out.trace(`> ${method} ${typeof input === 'string' ? input : input instanceof URL ? input.href : input.url} (Authorization: Bearer ***)`);
+      const response = await fetch(input, init);
+      out.trace(`< ${response.status} ${response.statusText}`);
+      if (response.status === 401 || response.status === 429) {
+        const retryAfterSeconds = parseRetryAfter(response.headers.get('retry-after'));
+        this.failure = retryAfterSeconds === undefined ? { status: response.status } : { status: response.status, retryAfterSeconds };
+      }
+      return response;
+    };
+    const transport = new StreamableHTTPClientTransport(new URL(this.options.url), {
+      requestInit: { headers: { Authorization: `Bearer ${this.options.token}` } },
+      fetch: tracingFetch,
+    });
+    const client = new Client({ name: 'radiance-cli', version: this.options.version }, { capabilities: {} });
+    this.onConnect?.(client);
+    try {
+      await client.connect(transport);
+    } catch (error) {
+      await client.close().catch(() => undefined);
+      throw error;
+    }
+    this.client = client;
+    return client;
+  }
+
+  private async attempt<T>(fn: (client: Client) => Promise<T>): Promise<T> {
+    this.failure = undefined;
+    try {
+      return await fn(await this.connect());
+    } catch (error) {
+      const failure = this.lastFailure();
+      if (failure?.status === 401) {
+        throw new CliError('unauthenticated', 'The Radiance token was refused. Run `radiance login` with a valid token.', ExitCode.Unauthenticated);
+      }
+      if (failure?.status === 429) {
+        throw new RateLimitedError(failure.retryAfterSeconds ?? DEFAULT_RETRY_SECONDS);
+      }
+      if (error instanceof CliError) {
+        throw error;
+      }
+      const reason = error instanceof Error ? error.message : String(error);
+      throw new CliError('network', `Could not reach Radiance: ${reason}`, ExitCode.Unexpected);
+    }
+  }
+
+  private lastFailure(): HttpFailure | undefined {
+    return this.failure;
+  }
+
+  async run<T>(fn: (client: Client) => Promise<T>): Promise<T> {
+    try {
+      return await this.attempt(fn);
+    } catch (error) {
+      if (!(error instanceof RateLimitedError)) {
+        throw error;
+      }
+      this.options.out.info(`Rate limited by Radiance; retrying in ${error.waitSeconds}s...`);
+      await this.options.io.sleep(error.waitSeconds * 1000);
+      await this.close();
+    }
+    try {
+      return await this.attempt(fn);
+    } catch (error) {
+      if (error instanceof RateLimitedError) {
+        throw new CliError('rate_limited', 'Radiance is rate limiting this token (60 requests per minute). Try again shortly.', ExitCode.RateLimited);
+      }
+      throw error;
+    }
+  }
+
+  async close(): Promise<void> {
+    const client = this.client;
+    this.client = undefined;
+    await client?.close().catch(() => undefined);
+  }
+}

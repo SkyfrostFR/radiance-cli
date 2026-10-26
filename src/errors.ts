@@ -74,5 +74,8 @@ export function parseToolError(text: string): ParsedToolError {
   if (/authentication required/i.test(text)) {
     return { code: 'unauthenticated', disposition: null, message: text.trim(), exitCode: ExitCode.Unauthenticated };
   }
+  if (/was found in your library/i.test(text)) {
+    return { code: 'not_found', disposition: null, message: text.trim(), exitCode: ExitCode.NotFound };
+  }
   return { code: 'unknown', disposition: null, message: text.trim(), exitCode: ExitCode.Unexpected };
 }

@@ -16,6 +16,8 @@ export interface Io {
   confirm: (question: string) => Promise<boolean>;
   openUrl: (url: string) => void;
   sleep: (ms: number) => Promise<void>;
+  /** Wall clock in ms; injectable so wait loops can be tested without waiting. */
+  now: () => number;
 }
 
 export function processIo(): Io {
@@ -70,5 +72,6 @@ export function processIo(): Io {
       }
     },
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now: () => Date.now(),
   };
 }
