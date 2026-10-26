@@ -1,0 +1,34 @@
+{
+  "name": "@radiance-app/cli",
+  "version": "0.1.0",
+  "description": "Command-line client for the Radiance video translation and dubbing platform",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "radiance": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/bin.js && node --check dist/bin.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "commander": "^15.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
