@@ -5,6 +5,7 @@ import { CliError, ExitCode, type ExitCodeValue } from './errors.js';
 import { type Io, processIo } from './io.js';
 import { Output } from './output.js';
 import { runBridge } from './mcp.js';
+import { installSkill } from './skill.js';
 import { registerWorkflowCommands } from './workflow.js';
 import {
   type Context,
@@ -218,6 +219,16 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
     .command('mcp')
     .description('run a local MCP server on stdio that relays every tool to Radiance (for Claude Desktop, Cursor, Cline, ...)')
     .action(action((ctx) => runBridge(ctx)));
+
+  const skill = program.command('skill').description('manage the Radiance agent skill');
+  skill
+    .command('install')
+    .description('copy the bundled skill into Claude Code (default), Codex or a directory; never overwrites local edits without --force')
+    .option('--claude', 'install into ~/.claude/skills/radiance (default)')
+    .option('--codex', 'install into ~/.codex/skills/radiance')
+    .option('--path <dir>', 'install into <dir>/radiance')
+    .option('--force', 'overwrite a modified or foreign copy')
+    .action(action((ctx, opts: { claude?: boolean; codex?: boolean; path?: string; force?: boolean }) => installSkill(ctx, opts)));
 
   registerWorkflowCommands(program, action);
 

@@ -35,6 +35,7 @@ Token priority: `--token`, then `RADIANCE_TOKEN`, then the config file. (`--toke
 | `radiance tools <name>` | Description and input schema of one tool |
 | `radiance call <tool> [--arg k=v]... [--input <json\|->]` | Call a tool |
 | `radiance mcp` | Local stdio MCP server relaying to Radiance (see below) |
+| `radiance skill install [--codex\|--path <dir>] [--force]` | Install the agent skill (see below) |
 
 Global flags (accepted before or after the command): `--token <token>`, `--json`, `-y/--yes`, `--verbose`, `-V/--version`.
 
@@ -67,7 +68,7 @@ radiance publish <video_id> --lang es --account <platform_account_id> --at 2026-
 | Command | Notes |
 |---|---|
 | `upload <file>` | Checks the extension (mp4, mov, avi, webm) locally, calls `create-video-upload`, streams the bytes with one `PUT` (never the whole file in memory; a progress bar on a terminal), then `confirm-video-upload`. A failed `PUT` is retried once, then exit 1 without confirming. The size ceiling is enforced by the server and relayed as is. |
-| `translate <file or video_id> --to es,en --mode <mode>` | Uploads a file first, asks the server for the price (`start-translation` with `estimate_only`), prints it, then asks your agreement (terminal prompt, or `--yes`; off a terminal without `--yes`: exit 3, nothing is spent, and the `video_id` is printed so you can re-run). `--estimate` stops at the price (exit 0; with a file it still uploads, the price needs the measured duration). Modes are the server's: a wrong one is refused by the server. `--subtitle-style`, `--title`, `--arg k=v` and `--input` are passed to the tool. |
+| `translate <file or video_id> --to es,en --mode <mode>` | Uploads a file first, asks the server for the price (`start-translation` with `estimate_only`), prints it, then asks your agreement (terminal prompt, or `--yes`; off a terminal without `--yes`: exit 3, nothing is spent, and the `video_id` is printed so you can re-run). `--estimate` stops at the price (exit 0; with a file it still uploads, the price needs the measured duration). Modes are the server's: a wrong one is refused by the server. `--title` names an uploaded file; `--arg k=v` and `--input` pass extra arguments to the tool. |
 | `--wait` (`translate`, `status`) | Polls `video-translation-status` every 5 s, growing to 30 s, printing phase, percent and minutes left. Stops when each language is completed or failed (a failed render that Radiance will retry on its own is still waited for). `--timeout <min>` (default 60) exits 1 when exceeded; the renders keep going. A failed language exits 9 and prints its reason. |
 | `--download <dir>` (`translate`, `download`) | Implies `--wait` on `translate`. Saves `<title>-<lang>.<ext>` with every character forbidden in file names removed, through a `.part` file renamed at the end. An existing file is never overwritten silently: exit 1 unless `--force`. |
 | `status <video_id>` | Languages, status, progress. |
@@ -143,6 +144,22 @@ Copy-paste configuration (replace the token with one from <https://radiance-app.
 ```
 
 Write tools (publishing, translation, uploads) are relayed as is: the confirmation is your MCP client's tool-approval prompt, not the CLI's `--yes`.
+
+## Agent skill
+
+The package ships a skill (`skills/radiance/SKILL.md` plus `references/`) that teaches an AI agent to drive the CLI. Install it once:
+
+```sh
+radiance skill install            # Claude Code: ~/.claude/skills/radiance
+radiance skill install --codex    # Codex: ~/.codex/skills/radiance
+radiance skill install --path <dir>   # anywhere else: <dir>/radiance
+```
+
+What the agent gets: setup and login without handling the token itself; the rule "`--estimate` first, show the price, `--yes` only after the user agrees" for anything that spends tokens or publishes; how to pick a translation mode; the upload, translate, wait, download and publish workflows with `--json`; the exit code table with what to do for each; the `radiance mcp` bridge; and what the CLI does not do (lip-sync, account connection, refunds are in the web app).
+
+Re-running the command upgrades the skill in place. It writes a `.radiance-skill.json` manifest of file hashes and refuses (exit 2, nothing written) to overwrite a file you edited or a directory it did not create, unless you pass `--force`. Files a newer version no longer ships are removed; files you added are kept.
+
+Release check: `npm run build && RADIANCE_TOKEN=... npm run check:skill` verifies that every tool and mode the skill cites exists on the live server (exit 1 on drift, 2 if the server cannot be read). The test suite runs the same check against the fake server.
 
 ## Exit codes
 

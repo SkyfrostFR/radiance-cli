@@ -9,6 +9,7 @@
   },
   "files": [
     "dist",
+    "skills",
     "README.md",
     "LICENSE"
   ],
@@ -16,11 +17,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && chmod +x dist/bin.js && node --check dist/bin.js",
+    "build": "tsc -p tsconfig.build.json && chmod +x dist/bin.js && node --check dist/bin.js && node --check scripts/check-skill-drift.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "check:skill": "node scripts/check-skill-drift.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.2",

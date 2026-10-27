@@ -294,7 +294,6 @@ interface TranslateOptions {
   download?: string;
   force?: boolean;
   timeout: string;
-  subtitleStyle?: string;
   title?: string;
   arg?: string[];
   input?: string;
@@ -329,7 +328,6 @@ async function translate(ctx: Context, target: string, opts: TranslateOptions): 
     }
     const args: Json = {
       ...extra,
-      ...(opts.subtitleStyle ? { subtitle_style: opts.subtitleStyle } : {}),
       video_id: videoId,
       languages,
       mode: opts.mode,
@@ -528,7 +526,6 @@ export function registerWorkflowCommands(program: Command, action: ActionFactory
     .option('--download <dir>', 'download the finished files into <dir> (implies --wait)')
     .option('--force', 'overwrite existing files when downloading')
     .option('--timeout <minutes>', 'give up waiting after this many minutes', '60')
-    .option('--subtitle-style <style>', 'subtitle style, passed to the tool as subtitle_style')
     .option('--title <title>', 'title for an uploaded file')
     .option('-a, --arg <key=value>', 'extra tool argument; repeatable', collect, [] as string[])
     .option('-i, --input <json|->', 'extra tool arguments as a JSON object, or - for stdin')

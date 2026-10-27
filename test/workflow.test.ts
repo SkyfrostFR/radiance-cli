@@ -241,9 +241,9 @@ describe('translate', () => {
     expect(r.sleeps).toEqual([5000, 5000]);
   });
 
-  it('passes --subtitle-style and --arg through, and rejects bad input before any call', async () => {
-    await runCli(['translate', VIDEO, '--to', 'es', '--mode', 'subtitles_only', '--estimate', '--subtitle-style', 'viral', '--arg', 'foo=1'], { env: env() });
-    expect(calls('start-translation')[0]?.args).toMatchObject({ subtitle_style: 'viral', foo: 1 });
+  it('passes --arg through, and rejects bad input before any call', async () => {
+    await runCli(['translate', VIDEO, '--to', 'es', '--mode', 'subtitles_only', '--estimate', '--arg', 'foo=1'], { env: env() });
+    expect(calls('start-translation')[0]?.args).toMatchObject({ foo: 1 });
     const before = server.postCount();
     expect((await runCli(['translate', 'nope.mp4', '--to', 'es', '--mode', 'x'], { env: env() })).code).toBe(2);
     expect((await runCli(['translate', VIDEO, '--mode', 'x'], { env: env() })).code).toBe(2);
